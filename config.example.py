@@ -4,7 +4,7 @@
 """
 
 # Токен бота от BotFather
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
+BOT_TOKEN = "8394039611:AAERDwCofc6k0WcmR4VXSO-ST2sfi-9lvEs"
 
 # Источники данных (простые текстовые файлы NOAA/NWS)
 METAR_URL_TEMPLATE = "https://tgftp.nws.noaa.gov/data/observations/metar/stations/{icao}.TXT"
