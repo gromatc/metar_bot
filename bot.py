@@ -1,35 +1,10 @@
 import logging
 import re
-import os
-from types import SimpleNamespace
+import html
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-
-try:
-    import config  # type: ignore
-except ModuleNotFoundError:
-    # Для деплоя (Docker/сервер) config.py может не лежать рядом с bot.py.
-    # Тогда берём настройки из переменных окружения.
-    config = SimpleNamespace(
-        BOT_TOKEN=os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE"),
-        METAR_URL_TEMPLATE=os.getenv(
-            "METAR_URL_TEMPLATE",
-            "https://tgftp.nws.noaa.gov/data/observations/metar/stations/{icao}.TXT",
-        ),
-        TAF_URL_TEMPLATE=os.getenv(
-            "TAF_URL_TEMPLATE",
-            "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/{icao}.TXT",
-        ),
-        VATSIM_METAR_URL_TEMPLATE=os.getenv(
-            "VATSIM_METAR_URL_TEMPLATE",
-            "https://metar.vatsim.net/metar/{icao}",
-        ),
-        VATSIM_TAF_URL_TEMPLATE=os.getenv(
-            "VATSIM_TAF_URL_TEMPLATE",
-            "https://metar.vatsim.net/taf/{icao}",
-        ),
-    )
+from settings import get_settings
 
 # Настройка логирования
 logging.basicConfig(
@@ -37,6 +12,8 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+settings = get_settings()
 
 
 def validate_icao_code(code: str) -> bool:
@@ -57,7 +34,7 @@ def get_metar_taf(icao_code: str) -> tuple[str, str]:
         taf_text = "Не удалось получить TAF"
 
         # METAR (NOAA/NWS plain text)
-        metar_url = config.METAR_URL_TEMPLATE.format(icao=icao_code)
+        metar_url = settings.metar_url_template.format(icao=icao_code)
         metar_response = requests.get(metar_url, timeout=10)
         if metar_response.status_code == 200:
             lines = [line.strip() for line in metar_response.text.splitlines() if line.strip()]
@@ -70,7 +47,7 @@ def get_metar_taf(icao_code: str) -> tuple[str, str]:
                 metar_text = f"METAR для {icao_code} не найден"
         elif metar_response.status_code == 404:
             # fallback: VATSIM
-            vatsim_metar_url = config.VATSIM_METAR_URL_TEMPLATE.format(icao=icao_code)
+            vatsim_metar_url = settings.vatsim_metar_url_template.format(icao=icao_code)
             vatsim_metar_resp = requests.get(vatsim_metar_url, timeout=10)
             if vatsim_metar_resp.status_code == 200 and vatsim_metar_resp.text.strip():
                 # VATSIM обычно отдаёт одну строку
@@ -82,7 +59,7 @@ def get_metar_taf(icao_code: str) -> tuple[str, str]:
             logger.error(f"METAR HTTP {metar_response.status_code}: {metar_url}")
 
         # TAF (NOAA/NWS plain text)
-        taf_url = config.TAF_URL_TEMPLATE.format(icao=icao_code)
+        taf_url = settings.taf_url_template.format(icao=icao_code)
         taf_response = requests.get(taf_url, timeout=10)
         if taf_response.status_code == 200:
             lines = [line.strip() for line in taf_response.text.splitlines() if line.strip()]
@@ -95,7 +72,7 @@ def get_metar_taf(icao_code: str) -> tuple[str, str]:
                 taf_text = f"TAF для {icao_code} не найден"
         elif taf_response.status_code == 404:
             # fallback: VATSIM
-            vatsim_taf_url = config.VATSIM_TAF_URL_TEMPLATE.format(icao=icao_code)
+            vatsim_taf_url = settings.vatsim_taf_url_template.format(icao=icao_code)
             vatsim_taf_resp = requests.get(vatsim_taf_url, timeout=10)
             if vatsim_taf_resp.status_code == 200 and vatsim_taf_resp.text.strip():
                 # На всякий случай схлопнем переносы в одну строку (у нас inline `...`)
@@ -159,24 +136,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     # Формируем ответ
     response = (
-        f"✈️ Аэропорт: {user_message}\n\n"
-        f"🌤️ METAR:\n`{metar}`\n\n"
-        f"📊 TAF:\n`{taf}`"
+        f"✈️ <b>Аэропорт:</b> {html.escape(user_message)}\n\n"
+        f"🌤️ <b>METAR:</b>\n<code>{html.escape(metar)}</code>\n\n"
+        f"📊 <b>TAF:</b>\n<code>{html.escape(taf)}</code>"
     )
     
     # Удаляем сообщение о загрузке и отправляем результат
     await loading_message.delete()
-    await update.message.reply_text(response, parse_mode='Markdown')
+    await update.message.reply_text(response, parse_mode="HTML")
 
 
 def main() -> None:
     """Запуск бота"""
-    if config.BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
-        logger.error("Пожалуйста, установите BOT_TOKEN в файле config.py")
+    if not settings.bot_token:
+        logger.error("BOT_TOKEN не задан. Задайте переменную окружения BOT_TOKEN (или .env для локального запуска).")
         return
     
     # Создаем приложение
-    application = Application.builder().token(config.BOT_TOKEN).build()
+    application = Application.builder().token(settings.bot_token).build()
     
     # Регистрируем обработчики
     application.add_handler(CommandHandler("start", start))
