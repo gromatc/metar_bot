@@ -1,9 +1,35 @@
 import logging
 import re
+import os
+from types import SimpleNamespace
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-import config
+
+try:
+    import config  # type: ignore
+except ModuleNotFoundError:
+    # Для деплоя (Docker/сервер) config.py может не лежать рядом с bot.py.
+    # Тогда берём настройки из переменных окружения.
+    config = SimpleNamespace(
+        BOT_TOKEN=os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE"),
+        METAR_URL_TEMPLATE=os.getenv(
+            "METAR_URL_TEMPLATE",
+            "https://tgftp.nws.noaa.gov/data/observations/metar/stations/{icao}.TXT",
+        ),
+        TAF_URL_TEMPLATE=os.getenv(
+            "TAF_URL_TEMPLATE",
+            "https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/{icao}.TXT",
+        ),
+        VATSIM_METAR_URL_TEMPLATE=os.getenv(
+            "VATSIM_METAR_URL_TEMPLATE",
+            "https://metar.vatsim.net/metar/{icao}",
+        ),
+        VATSIM_TAF_URL_TEMPLATE=os.getenv(
+            "VATSIM_TAF_URL_TEMPLATE",
+            "https://metar.vatsim.net/taf/{icao}",
+        ),
+    )
 
 # Настройка логирования
 logging.basicConfig(

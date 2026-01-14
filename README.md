@@ -24,16 +24,23 @@ pip install -r requirements.txt
    - Следуйте инструкциям для создания бота
    - Скопируйте полученный токен
 
-4. Настройте бота:
-   - Откройте файл `bot.py`
-   - Найдите строку `BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"`
-   - Замените `YOUR_BOT_TOKEN_HERE` на ваш токен от BotFather
+4. Настройте бота (один из вариантов):
+   - **Вариант A (локально проще)**: скопируйте `config.example.py` в `config.py` и вставьте токен в `BOT_TOKEN`
+   - **Вариант B (для сервера/деплоя лучше)**: задайте переменную окружения `BOT_TOKEN`
 
 ## Запуск
 
 ```bash
 python bot.py
 ```
+
+## Переменные окружения (для деплоя)
+
+- `BOT_TOKEN` — токен Telegram-бота (обязательно, если нет `config.py`)
+- `METAR_URL_TEMPLATE` (опционально)
+- `TAF_URL_TEMPLATE` (опционально)
+- `VATSIM_METAR_URL_TEMPLATE` (опционально)
+- `VATSIM_TAF_URL_TEMPLATE` (опционально)
 
 ## Использование
 
