@@ -2,6 +2,14 @@ import os
 from dataclasses import dataclass
 
 
+def _first_env(*names: str) -> str:
+    for name in names:
+        v = os.getenv(name)
+        if v and v.strip():
+            return v.strip()
+    return ""
+
+
 def _load_dotenv_if_present() -> None:
     """
     Мягко подгружаем .env, если установлен python-dotenv.
@@ -28,7 +36,8 @@ def get_settings() -> Settings:
     _load_dotenv_if_present()
 
     return Settings(
-        bot_token=os.getenv("BOT_TOKEN", "").strip(),
+        # Railway/Render/Fly/etc иногда используют разные имена переменных — поддержим несколько.
+        bot_token=_first_env("BOT_TOKEN", "TELEGRAM_BOT_TOKEN", "TELEGRAM_TOKEN"),
         metar_url_template=os.getenv(
             "METAR_URL_TEMPLATE",
             "https://tgftp.nws.noaa.gov/data/observations/metar/stations/{icao}.TXT",

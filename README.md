@@ -36,11 +36,17 @@ python bot.py
 
 ## Переменные окружения (для деплоя)
 
-- `BOT_TOKEN` — токен Telegram-бота (обязательно, если нет `config.py`)
+- `BOT_TOKEN` — токен Telegram-бота (обязательно)
+- (также принимаются `TELEGRAM_BOT_TOKEN` или `TELEGRAM_TOKEN`)
 - `METAR_URL_TEMPLATE` (опционально)
 - `TAF_URL_TEMPLATE` (опционально)
 - `VATSIM_METAR_URL_TEMPLATE` (опционально)
 - `VATSIM_TAF_URL_TEMPLATE` (опционально)
+
+## Railway (важно)
+
+- В Railway откройте **Variables** и добавьте `BOT_TOKEN=...`
+- Убедитесь, что сервис запущен **в 1 экземпляре** (если запустить 2, будет ошибка Telegram `409 Conflict`)
 
 ## Использование
 
