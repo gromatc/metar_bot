@@ -48,6 +48,30 @@ python bot.py
 - В Railway откройте **Variables** и добавьте `BOT_TOKEN=...`
 - Убедитесь, что сервис запущен **в 1 экземпляре** (если запустить 2, будет ошибка Telegram `409 Conflict`)
 
+## Автоматический деплой на Railway (GitHub Actions)
+
+Проект поддерживает автоматический деплой через GitHub Actions при push в main ветку.
+
+**Настройка:**
+
+1. На GitHub откройте **Settings** → **Secrets and variables** → **Actions**
+2. Добавьте новый secret:
+   - **Name:** `RAILWAY_TOKEN`
+   - **Value:** [Ваш Railway API токен](https://railway.app/account/tokens)
+   - Получить токен: откройте Railway → Account → API Tokens → Create New Token
+
+3. Загрузьте код на GitHub:
+```bash
+git push origin main
+```
+
+4. GitHub Actions автоматически запустит деплой
+
+**Токен полностью защищен:**
+- ✅ Хранится в GitHub Secrets (не видно в коде)
+- ✅ Не попадает в логи
+- ✅ Используется только для деплоя
+
 ## Использование
 
 1. Найдите вашего бота в Telegram
