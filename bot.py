@@ -22,6 +22,49 @@ def validate_icao_code(code: str) -> bool:
     return bool(re.match(pattern, code.upper()))
 
 
+def get_airport_info(icao_code: str) -> tuple[str, str]:
+    """
+    Получает информацию об аэропорте (название и город)
+    Возвращает кортеж (airport_name, city)
+    """
+    icao_code = icao_code.upper()
+    
+    try:
+        # Попытка получить данные из aviationweather.gov API
+        url = f"https://aviationweather.gov/api/airport/info/{icao_code}"
+        response = requests.get(url, timeout=5)
+        
+        if response.status_code == 200:
+            data = response.json()
+            name = data.get('name', icao_code)
+            city = data.get('city', '')
+            return name, city
+        
+        # Fallback: базовая база данных аэропортов
+        airports_db = {
+            'UUEE': ('Шереметьево', 'Москва'),
+            'UUWW': ('Внуково', 'Москва'),
+            'УУDD': ('Домодедово', 'Москва'),
+            'KORD': ('Chicago O\'Hare', 'Chicago'),
+            'EGLL': ('London Heathrow', 'London'),
+            'LFPG': ('Paris Charles de Gaulle', 'Paris'),
+            'EDDF': ('Frankfurt', 'Frankfurt'),
+            'LEMD': ('Madrid Barajas', 'Madrid'),
+            'LIRF': ('Rome Fiumicino', 'Rome'),
+            'UUWW': ('Vnukovo', 'Moscow'),
+            'CYYZ': ('Toronto Pearson', 'Toronto'),
+        }
+        
+        if icao_code in airports_db:
+            return airports_db[icao_code]
+        
+        return icao_code, ""
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения информации об аэропорте: {e}")
+        return icao_code, ""
+
+
 def get_metar_taf(icao_code: str) -> tuple[str, str]:
     """
     Получает METAR и TAF данные для указанного аэропорта
@@ -131,12 +174,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # Отправляем сообщение о загрузке
     loading_message = await update.message.reply_text("⏳ Запрашиваю данные...")
     
-    # Получаем METAR и TAF
+    # Получаем информацию об аэропорте и METAR/TAF
+    airport_name, city = get_airport_info(user_message)
     metar, taf = get_metar_taf(user_message)
     
     # Формируем ответ
+    location_info = f"{airport_name}, {city}" if city else airport_name
     response = (
-        f"✈️ <b>Аэропорт:</b> {html.escape(user_message)}\n\n"
+        f"✈️ <b>ICAO:</b> {html.escape(user_message)}\n"
+        f"<b>Аэропорт:</b> {html.escape(location_info)}\n\n"
         f"🌤️ <b>METAR:</b>\n<code>{html.escape(metar)}</code>\n\n"
         f"📊 <b>TAF:</b>\n<code>{html.escape(taf)}</code>"
     )
