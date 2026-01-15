@@ -13,6 +13,7 @@ AIRPORTS = {
     
     # Санкт-Петербург
     "ULLI": ("Пулково, Санкт-Петербург", "Pulkovo, St. Petersburg"),
+    "UMKK": ("Храброво, Калининград", "Chrabrovo, Kaliningrad"),
     
     # Юг России
     "URSS": ("Сочи (Адлер)", "Sochi (Adler)"),
