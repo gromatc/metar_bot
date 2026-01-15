@@ -1,6 +1,8 @@
 import logging
 import re
 import html
+import json
+import os
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -14,6 +16,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
+
+# Загружаем базу данных аэропортов
+airports_db = {}
+airports_file = os.path.join(os.path.dirname(__file__), 'airports.json')
+if os.path.exists(airports_file):
+    try:
+        with open(airports_file, 'r', encoding='utf-8') as f:
+            airports_db = json.load(f)
+    except Exception as e:
+        logger.error(f"Ошибка загрузки airports.json: {e}")
 
 
 def validate_icao_code(code: str) -> bool:
@@ -30,6 +42,13 @@ def get_airport_info(icao_code: str) -> tuple[str, str]:
     icao_code = icao_code.upper()
     
     try:
+        # Поиск в локальной базе данных
+        if icao_code in airports_db:
+            airport = airports_db[icao_code]
+            name = airport.get('name', icao_code)
+            city = airport.get('city', '')
+            return name, city
+        
         # Попытка получить данные из aviationweather.gov API
         url = f"https://aviationweather.gov/api/airport/info/{icao_code}"
         response = requests.get(url, timeout=5)
@@ -39,90 +58,6 @@ def get_airport_info(icao_code: str) -> tuple[str, str]:
             name = data.get('name', icao_code)
             city = data.get('city', '')
             return name, city
-        
-        # Fallback: расширенная база данных аэропортов
-        airports_db = {
-            # Россия
-            'UUEE': ('Шереметьево', 'Москва'),
-            'UUWW': ('Внуково', 'Москва'),
-            'УУDD': ('Домодедово', 'Москва'),
-            'UUDD': ('Домодедово', 'Москва'),
-            'UUWW': ('Внуково', 'Москва'),
-            'UUOB': ('Обь', 'Новосибирск'),
-            'UNEE': ('Кольцово', 'Екатеринбург'),
-            'UNII': ('Идрицево', 'Иркутск'),
-            'UNVV': ('Соперское', 'Владивосток'),
-            'UHLL': ('Лесное', 'Сочи'),
-            'UUSU': ('Толмачёво', 'Новосибирск'),
-            'UVVV': ('Сидоровичи', 'Вологда'),
-            'UUWW': ('Внуково', 'Москва'),
-            
-            # Беларусь
-            'UMKK': ('Минск Национальный', 'Минск'),
-            'UMMS': ('Минск-2', 'Минск'),
-            
-            # Литва
-            'EYVI': ('Вильнюс', 'Вильнюс'),
-            'EYVL': ('Каунас', 'Каунас'),
-            'EYKC': ('Паланга', 'Паланга'),
-            
-            # Польша
-            'EPGD': ('Гданьск', 'Гданьск'),
-            'EPWA': ('Шопен', 'Варшава'),
-            'EPWU': ('Модлин', 'Варшава'),
-            'EPKK': ('Балице', 'Краков'),
-            'EPWR': ('Вроцлав', 'Вроцлав'),
-            'EPPO': ('Пшеемысль', 'Пшеемысль'),
-            'EPKT': ('Катовице', 'Катовице'),
-            
-            # Украина
-            'UKBB': ('Борисполь', 'Киев'),
-            'UKBK': ('Киев Жуляны', 'Киев'),
-            'UKKK': ('Кировоград', 'Кировоград'),
-            'UKOD': ('Одесса', 'Одесса'),
-            'UKHH': ('Харьков', 'Харьков'),
-            'UKDD': ('Днепр', 'Днепр'),
-            
-            # Казахстан
-            'UUDD': ('Домодедово', 'Москва'),
-            'UAKK': ('Алматы', 'Алматы'),
-            'UACC': ('Нур-Султан', 'Нур-Султан'),
-            'UATT': ('Атырау', 'Атырау'),
-            
-            # США
-            'KORD': ('Chicago O\'Hare', 'Chicago'),
-            'KJFK': ('JFK', 'New York'),
-            'KLAX': ('LAX', 'Los Angeles'),
-            'KATL': ('Hartsfield-Jackson', 'Atlanta'),
-            'KDFW': ('Dallas/Fort Worth', 'Dallas'),
-            'KDCA': ('Ronald Reagan', 'Washington DC'),
-            
-            # Европа
-            'EGLL': ('London Heathrow', 'London'),
-            'EGKK': ('Gatwick', 'London'),
-            'LFPG': ('Paris Charles de Gaulle', 'Paris'),
-            'EDDF': ('Frankfurt', 'Frankfurt'),
-            'EDDM': ('Munich', 'Munich'),
-            'LEMD': ('Madrid Barajas', 'Madrid'),
-            'LIRF': ('Rome Fiumicino', 'Rome'),
-            'LIRN': ('Rome Ciampino', 'Rome'),
-            'LOWW': ('Vienna', 'Vienna'),
-            'UUWW': ('Внуково', 'Moscow'),
-            'LFPG': ('Charles de Gaulle', 'Paris'),
-            'EGSS': ('Stansted', 'London'),
-            'EHAM': ('Amsterdam', 'Amsterdam'),
-            'KSFO': ('San Francisco', 'San Francisco'),
-            
-            # Другие
-            'CYYZ': ('Toronto Pearson', 'Toronto'),
-            'CYVR': ('Vancouver', 'Vancouver'),
-            'KJFK': ('Kennedy', 'New York'),
-            'ZBAA': ('Capital', 'Beijing'),
-            'ZSPD': ('Pudong', 'Shanghai'),
-        }
-        
-        if icao_code in airports_db:
-            return airports_db[icao_code]
         
         return icao_code, ""
         
