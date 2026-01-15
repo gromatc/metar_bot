@@ -1,12 +1,11 @@
 import logging
 import re
 import html
-import json
-import os
 import requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from settings import get_settings
+from airports import get_airport_name
 
 # Настройка логирования
 logging.basicConfig(
@@ -17,53 +16,11 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-# Загружаем базу данных аэропортов
-airports_db = {}
-airports_file = os.path.join(os.path.dirname(__file__), 'airports.json')
-if os.path.exists(airports_file):
-    try:
-        with open(airports_file, 'r', encoding='utf-8') as f:
-            airports_db = json.load(f)
-    except Exception as e:
-        logger.error(f"Ошибка загрузки airports.json: {e}")
-
 
 def validate_icao_code(code: str) -> bool:
     """Проверяет, что код соответствует формату ИКАО (4 буквы)"""
     pattern = r'^[A-Z]{4}$'
     return bool(re.match(pattern, code.upper()))
-
-
-def get_airport_info(icao_code: str) -> tuple[str, str]:
-    """
-    Получает информацию об аэропорте (название и город)
-    Возвращает кортеж (airport_name, city)
-    """
-    icao_code = icao_code.upper()
-    
-    try:
-        # Поиск в локальной базе данных
-        if icao_code in airports_db:
-            airport = airports_db[icao_code]
-            name = airport.get('name', icao_code)
-            city = airport.get('city', '')
-            return name, city
-        
-        # Попытка получить данные из aviationweather.gov API
-        url = f"https://aviationweather.gov/api/airport/info/{icao_code}"
-        response = requests.get(url, timeout=5)
-        
-        if response.status_code == 200:
-            data = response.json()
-            name = data.get('name', icao_code)
-            city = data.get('city', '')
-            return name, city
-        
-        return icao_code, ""
-        
-    except Exception as e:
-        logger.error(f"Ошибка получения информации об аэропорте: {e}")
-        return icao_code, ""
 
 
 def get_metar_taf(icao_code: str) -> tuple[str, str]:
@@ -119,7 +76,7 @@ def get_metar_taf(icao_code: str) -> tuple[str, str]:
             vatsim_taf_url = settings.vatsim_taf_url_template.format(icao=icao_code)
             vatsim_taf_resp = requests.get(vatsim_taf_url, timeout=10)
             if vatsim_taf_resp.status_code == 200 and vatsim_taf_resp.text.strip():
-                # На всякий случай схлопнем переносы в одну строку (у нас inline `...`)
+                # На всякий случай схлопнем переносы в одну строку
                 taf_text = " ".join(vatsim_taf_resp.text.split())
             else:
                 taf_text = f"TAF для {icao_code} не найден"
@@ -176,14 +133,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     loading_message = await update.message.reply_text("⏳ Запрашиваю данные...")
     
     # Получаем информацию об аэропорте и METAR/TAF
-    airport_name, city = get_airport_info(user_message)
+    name_ru, name_en = get_airport_name(user_message)
     metar, taf = get_metar_taf(user_message)
     
-    # Формируем ответ
-    location_info = f"{airport_name}, {city}" if city else airport_name
+    # Формируем ответ с кодом ИКАО и названием на русском и английском
     response = (
         f"✈️ <b>ICAO:</b> {html.escape(user_message)}\n"
-        f"<b>Аэропорт:</b> {html.escape(location_info)}\n\n"
+        f"🇷🇺 <b>Аэропорт:</b> {html.escape(name_ru)}\n"
+        f"🇬🇧 <b>Airport:</b> {html.escape(name_en)}\n\n"
         f"🌤️ <b>METAR:</b>\n<code>{html.escape(metar)}</code>\n\n"
         f"📊 <b>TAF:</b>\n<code>{html.escape(taf)}</code>"
     )
@@ -214,4 +171,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-
